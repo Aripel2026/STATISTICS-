@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "key": "cpi_inflation_yoy",
+    "labelEn": "Inflation (CPI, annual rate of change)",
+    "labelHe": "אינפלציה (מדד המחירים לצרכן, שינוי שנתי)",
+    "eurostatDatasetCode": "prc_hicp_aind",
+    "euFilterOverrides": { "unit": "RCH_A_AVG", "coicop": "CP00" },
+    "cbsApiType": "index",
+    "cbsCode": "120010",
+    "cbsValueKind": "yoy",
+    "verifiedAt": "2026-07-19",
+    "notes": "CBS code 120010 = 'Consumer Price Index - General' from the dedicated apis.cbs.gov.il/index/data/price API (distinct from the general series/* API, whose catalog is unreliable — see CLAUDE.md). Both sides report a year-over-year inflation rate (CBS percentYear vs Eurostat RCH_A_AVG), so the two are genuinely comparable despite different index base years."
+  },
+  {
+    "key": "housing_price_yoy",
+    "labelEn": "House prices (annual rate of change)",
+    "labelHe": "מחירי דירות (שינוי שנתי)",
+    "eurostatDatasetCode": "prc_hpi_a",
+    "euFilterOverrides": { "unit": "RCH_A_AVG", "purchase": "TOTAL" },
+    "cbsApiType": "index",
+    "cbsCode": "40010",
+    "cbsValueKind": "yoy",
+    "verifiedAt": "2026-07-19",
+    "notes": "CBS code 40010 = 'Prices of Dwellings' from the same dedicated price-index API. Both sides use annual rate of change, so directly comparable across different index base years."
+  }
+]

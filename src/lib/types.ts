@@ -38,6 +38,15 @@ export interface CbsSeriesResponse {
   rawUrl: string;
 }
 
+export interface CbsPriceIndexResponse {
+  code: string;
+  title: string | null;
+  source: "cbs";
+  updated: string | null;
+  series: SeriesPoint[];
+  rawUrl: string;
+}
+
 export interface TocDataset {
   code: string;
   title: string;
@@ -79,10 +88,13 @@ export interface FlatIndicator {
 
 export interface IndicatorMapping {
   key: string;
-  eurostatDatasetCode: string;
-  cbsSeriesId: string;
   labelEn: string;
   labelHe: string;
+  eurostatDatasetCode: string;
+  euFilterOverrides?: Record<string, string>;
+  cbsApiType: "series" | "index";
+  cbsCode: string;
+  cbsValueKind?: "level" | "yoy";
   verifiedAt: string;
   notes?: string;
 }

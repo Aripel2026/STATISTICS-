@@ -2,8 +2,12 @@
 
 Bilingual (Hebrew/English, full RTL) web app comparing socioeconomic
 indicators between Israel and European Union member states. Single-page
-UI: search for an indicator, pick which EU countries/aggregate/Israel to
-show, and view as a chart or table — no separate tabs to navigate.
+UI with two modes: **Verified comparisons** — a short list of indicators
+pre-confirmed to use the same measure on both sides (currently inflation
+and house prices, both as annual % change) — and **Browse all Eurostat
+data**, a free-text search over Eurostat's full catalog where Israel data
+can be manually attached (clearly marked as unverified). Pick which EU
+countries/aggregate/Israel to show and view as a chart or table.
 
 ## Core principle
 
@@ -18,21 +22,22 @@ source API's own last-updated timestamp.
 - **Eurostat** (`ec.europa.eu/eurostat/api`): EU member-state and EU
   aggregate data, JSON-stat format, no API key. Browsed dynamically via the
   Eurostat Table of Contents (`catalogue/toc/txt`).
-- **Israel CBS** (`apis.cbs.gov.il`): Israeli data, browsed hierarchically
-  (`series/catalog/level`, `series/catalog/path`, `series/data/list`) — CBS
-  has no free-text search endpoint, so `/api/cbs/search` builds its own
-  searchable index server-side by crawling CBS's categories
-  (`server-lib/cbsIndex.ts`). `/data/cbs-indicator-map.json` is a curated,
-  hand-confirmed mapping from a Eurostat dataset to a matching CBS series,
-  auto-attached when present — see `scripts/discover-cbs.ts` for how
-  candidates are found and verified before being added. **This map is
-  intentionally empty right now**: CBS's own catalog leaf titles have been
-  observed to be wrong for their underlying data (see `CLAUDE.md`), so
-  automated keyword matching alone isn't trustworthy enough to ship. When
-  no curated mapping exists, the UI lets the user search CBS themselves and
-  attach a series manually — clearly labeled "manually selected, not an
-  automatic match" and plotted on its own chart axis, never presented as a
-  verified pairing.
+- **Israel CBS** (`apis.cbs.gov.il`) — actually **two separate CBS APIs**:
+  - `index/*`: a dedicated, reliably-labeled price-index API (CPI, house
+    prices, producer prices). `data/cbs-indicator-map.json` uses this
+    exclusively — every entry pairs a CBS year-over-year % change against
+    a Eurostat series explicitly filtered to the matching "rate of change"
+    unit, so the two are genuinely comparable, not just visually similar.
+  - `series/*`: a general catalog, browsed hierarchically (`series/catalog/
+    level`, `series/catalog/path`, `series/data/list`) since CBS has no
+    free-text search. **Confirmed unreliable for automated concept
+    matching** — a catalog leaf's own label can be flatly wrong for what
+    it actually returns (see `CLAUDE.md`). Used only for the manual-attach
+    flow: `/api/cbs/search` builds its own searchable index server-side
+    (`server-lib/cbsIndex.ts`), and in "Browse all Eurostat data" mode the
+    user can search it and attach a series themselves — clearly labeled
+    "manually selected, not an automatic match" and plotted on its own
+    chart axis, never presented as a verified pairing.
 
 ## Development
 

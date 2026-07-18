@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { fetchEurostatDataset } from "../server-lib/eurostatClient.js";
-import { fetchCbsSeries } from "../server-lib/cbsClient.js";
+import { fetchCbsSeries, fetchCbsPriceIndex } from "../server-lib/cbsClient.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MAP_PATH = path.join(__dirname, "..", "data", "cbs-indicator-map.json");
@@ -17,7 +17,10 @@ const BASELINE_EUROSTAT_CODES = ["une_rt_a", "prc_hicp_aind", "demo_mlexpec", "n
 interface IndicatorMapping {
   key: string;
   eurostatDatasetCode: string;
-  cbsSeriesId: string;
+  euFilterOverrides?: Record<string, string>;
+  cbsApiType: "series" | "index";
+  cbsCode: string;
+  cbsValueKind?: "level" | "yoy";
   labelEn: string;
   labelHe: string;
   verifiedAt: string;
@@ -36,7 +39,7 @@ interface EurostatCheckResult {
 }
 
 interface CbsCheckResult {
-  seriesId: string;
+  code: string;
   ok: boolean;
   updated: string | null;
   yearRange: [number, number] | null;
@@ -66,9 +69,9 @@ function yearRangeOf(series: Record<string, { year: number; value: number | null
   return [min, max];
 }
 
-async function checkEurostat(code: string): Promise<EurostatCheckResult> {
+async function checkEurostat(code: string, overrides?: Record<string, string>): Promise<EurostatCheckResult> {
   try {
-    const result = await fetchEurostatDataset(code);
+    const result = await fetchEurostatDataset(code, overrides);
     return {
       code,
       ok: true,
@@ -92,17 +95,20 @@ async function checkEurostat(code: string): Promise<EurostatCheckResult> {
   }
 }
 
-async function checkCbs(seriesId: string): Promise<CbsCheckResult> {
+async function checkCbs(mapping: IndicatorMapping): Promise<CbsCheckResult> {
   try {
-    const result = await fetchCbsSeries(seriesId);
+    const result =
+      mapping.cbsApiType === "index"
+        ? await fetchCbsPriceIndex(mapping.cbsCode, mapping.cbsValueKind ?? "yoy")
+        : await fetchCbsSeries(mapping.cbsCode);
     const years = result.series.map((p) => p.year);
     const yearRange: [number, number] | null = years.length
       ? [Math.min(...years), Math.max(...years)]
       : null;
-    return { seriesId, ok: true, updated: result.updated, yearRange };
+    return { code: mapping.cbsCode, ok: true, updated: result.updated, yearRange };
   } catch (err) {
     return {
-      seriesId,
+      code: mapping.cbsCode,
       ok: false,
       updated: null,
       yearRange: null,
@@ -129,7 +135,8 @@ async function main() {
   console.log(`Checking ${eurostatCodes.length} Eurostat dataset(s) live...\n`);
   const eurostatResults: EurostatCheckResult[] = [];
   for (const code of eurostatCodes) {
-    eurostatResults.push(await checkEurostat(code));
+    const mapping = mappings.find((m) => m.eurostatDatasetCode === code);
+    eurostatResults.push(await checkEurostat(code, mapping?.euFilterOverrides));
   }
 
   console.log(
@@ -152,18 +159,18 @@ async function main() {
     if (!r.ok) console.log(`    error: ${r.error}`);
   }
 
-  console.log(`\nChecking ${mappings.length} CBS series (from cbs-indicator-map.json)...\n`);
+  console.log(`\nChecking ${mappings.length} CBS indicator(s) (from cbs-indicator-map.json)...\n`);
   const cbsResults: CbsCheckResult[] = [];
   for (const m of mappings) {
-    cbsResults.push(await checkCbs(m.cbsSeriesId));
+    cbsResults.push(await checkCbs(m));
   }
   if (mappings.length === 0) {
     console.log("  (none mapped yet — see scripts/discover-cbs.ts)");
   } else {
-    console.log(padCell("SERIES ID", 16) + padCell("STATUS", 8) + padCell("UPDATED", 27) + padCell("YEARS", 12));
+    console.log(padCell("CBS CODE", 16) + padCell("STATUS", 8) + padCell("UPDATED", 27) + padCell("YEARS", 12));
     for (const r of cbsResults) {
       console.log(
-        padCell(r.seriesId, 16) +
+        padCell(r.code, 16) +
           padCell(r.ok ? "OK" : "FAIL", 8) +
           padCell(r.updated ?? "-", 27) +
           padCell(r.yearRange ? `${r.yearRange[0]}-${r.yearRange[1]}` : "-", 12),
@@ -175,7 +182,7 @@ async function main() {
   const readyIndicators = mappings
     .filter((m) => {
       const eu = eurostatResults.find((r) => r.code === m.eurostatDatasetCode);
-      const cbs = cbsResults.find((r) => r.seriesId === m.cbsSeriesId);
+      const cbs = cbsResults.find((r) => r.code === m.cbsCode);
       return eu?.ok && cbs?.ok;
     })
     .map((m) => m.key);
@@ -191,8 +198,9 @@ async function main() {
   console.log(`Ready indicators (Eurostat+CBS both passing): ${readyIndicators.length ? readyIndicators.join(", ") : "(none)"}`);
 
   const anyEurostatFail = eurostatResults.some((r) => BASELINE_EUROSTAT_CODES.includes(r.code) && !r.ok);
-  if (anyEurostatFail) {
-    console.error("\nFAIL: a baseline Eurostat dataset failed to load.");
+  const anyCuratedFail = mappings.length > 0 && readyIndicators.length < mappings.length;
+  if (anyEurostatFail || anyCuratedFail) {
+    console.error("\nFAIL: a baseline dataset or a curated indicator failed to load.");
     process.exitCode = 1;
   }
 }

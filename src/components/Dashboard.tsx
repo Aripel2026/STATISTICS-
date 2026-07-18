@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../i18n";
 import {
+  fetchCbsPriceIndex,
   fetchCbsSeries,
   fetchEurostatDataset,
   fetchIndicatorMappings,
@@ -8,10 +9,10 @@ import {
 } from "../lib/api";
 import { flattenToc } from "../lib/flattenToc";
 import type {
-  CbsSeriesResponse,
   EurostatDatasetResponse,
   IndicatorMapping,
   Provenance,
+  SeriesPoint,
   TocNode,
 } from "../lib/types";
 import CbsSeriesPicker from "./CbsSeriesPicker";
@@ -24,15 +25,26 @@ import ProvenanceFooter from "./ProvenanceFooter";
 
 const CHART_COLORS = ["#5b9dff", "#34c98f", "#ffb454", "#ff7b7b", "#c58cff", "#4dd6d0", "#f28cb1", "#a3c957"];
 
+interface IsraelData {
+  id: string;
+  title: string | null;
+  updated: string | null;
+  series: SeriesPoint[];
+  rawUrl: string;
+}
+
 export default function Dashboard() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const [mode, setMode] = useState<"curated" | "advanced">("curated");
+
+  const [mappings, setMappings] = useState<IndicatorMapping[]>([]);
+  const [selectedMapping, setSelectedMapping] = useState<IndicatorMapping | null>(null);
+
   const [toc, setToc] = useState<TocNode | null>(null);
   const [tocError, setTocError] = useState(false);
   const flatList = useMemo(() => (toc ? flattenToc(toc) : []), [toc]);
-
-  const [mappings, setMappings] = useState<IndicatorMapping[]>([]);
-
   const [selected, setSelected] = useState<{ code: string; title: string } | null>(null);
+
   const [dataset, setDataset] = useState<EurostatDatasetResponse | null>(null);
   const [datasetLoading, setDatasetLoading] = useState(false);
   const [datasetError, setDatasetError] = useState(false);
@@ -41,75 +53,116 @@ export default function Dashboard() {
   const [includeEuAggregate, setIncludeEuAggregate] = useState(true);
   const [includeIsrael, setIncludeIsrael] = useState(true);
 
-  const [cbsSeriesId, setCbsSeriesId] = useState<string | null>(null);
-  const [cbsManuallyPicked, setCbsManuallyPicked] = useState(false);
-  const [cbsSeriesData, setCbsSeriesData] = useState<CbsSeriesResponse | null>(null);
-  const [cbsLoading, setCbsLoading] = useState(false);
-  const [cbsError, setCbsError] = useState(false);
+  const [israelData, setIsraelData] = useState<IsraelData | null>(null);
+  const [israelLoading, setIsraelLoading] = useState(false);
+  const [israelError, setIsraelError] = useState(false);
+
+  // Advanced mode only: manual CBS attach (no curated/verified match exists).
+  const [manualCbsId, setManualCbsId] = useState<string | null>(null);
   const [showCbsPicker, setShowCbsPicker] = useState(false);
 
   const [viewMode, setViewMode] = useState<"chart" | "table">("chart");
 
   useEffect(() => {
-    fetchToc().then(setToc).catch(() => setTocError(true));
     fetchIndicatorMappings().then(setMappings).catch(() => setMappings([]));
+    fetchToc().then(setToc).catch(() => setTocError(true));
   }, []);
 
+  // Curated mode: load the Eurostat side for the chosen mapping.
   useEffect(() => {
-    if (!selected) return;
+    if (mode !== "curated" || !selectedMapping) return;
     setDatasetLoading(true);
     setDatasetError(false);
     setDataset(null);
     setSelectedGeoCodes([]);
     setIncludeEuAggregate(true);
     setIncludeIsrael(true);
-    setCbsSeriesData(null);
-    setShowCbsPicker(false);
 
-    const mapping = mappings.find((m) => m.eurostatDatasetCode === selected.code);
-    setCbsSeriesId(mapping?.cbsSeriesId ?? null);
-    setCbsManuallyPicked(false);
+    fetchEurostatDataset(selectedMapping.eurostatDatasetCode, selectedMapping.euFilterOverrides)
+      .then(setDataset)
+      .catch(() => setDatasetError(true))
+      .finally(() => setDatasetLoading(false));
+  }, [mode, selectedMapping]);
+
+  // Curated mode: load the verified CBS side.
+  useEffect(() => {
+    if (mode !== "curated" || !selectedMapping || !includeIsrael) {
+      if (mode === "curated") setIsraelData(null);
+      return;
+    }
+    setIsraelLoading(true);
+    setIsraelError(false);
+    const fetcher =
+      selectedMapping.cbsApiType === "index"
+        ? fetchCbsPriceIndex(selectedMapping.cbsCode, selectedMapping.cbsValueKind ?? "yoy")
+            .then((r) => ({ id: r.code, title: r.title, updated: r.updated, series: r.series, rawUrl: r.rawUrl }))
+        : fetchCbsSeries(selectedMapping.cbsCode).then((r) => ({
+            id: r.seriesId,
+            title: r.title,
+            updated: r.updated,
+            series: r.series,
+            rawUrl: r.rawUrl,
+          }));
+    fetcher
+      .then(setIsraelData)
+      .catch(() => setIsraelError(true))
+      .finally(() => setIsraelLoading(false));
+  }, [mode, selectedMapping, includeIsrael]);
+
+  // Advanced mode: load the Eurostat side for the freely searched dataset.
+  useEffect(() => {
+    if (mode !== "advanced" || !selected) return;
+    setDatasetLoading(true);
+    setDatasetError(false);
+    setDataset(null);
+    setSelectedGeoCodes([]);
+    setIncludeEuAggregate(true);
+    setIncludeIsrael(true);
+    setIsraelData(null);
+    setManualCbsId(null);
+    setShowCbsPicker(false);
 
     fetchEurostatDataset(selected.code)
       .then(setDataset)
       .catch(() => setDatasetError(true))
       .finally(() => setDatasetLoading(false));
-  }, [selected, mappings]);
+  }, [mode, selected]);
 
+  // Advanced mode: load the manually attached CBS series, if any.
   useEffect(() => {
-    if (!includeIsrael || !cbsSeriesId) {
-      setCbsSeriesData(null);
+    if (mode !== "advanced" || !includeIsrael || !manualCbsId) {
+      if (mode === "advanced") setIsraelData(null);
       return;
     }
-    setCbsLoading(true);
-    setCbsError(false);
-    fetchCbsSeries(cbsSeriesId)
-      .then(setCbsSeriesData)
-      .catch(() => setCbsError(true))
-      .finally(() => setCbsLoading(false));
-  }, [includeIsrael, cbsSeriesId]);
+    setIsraelLoading(true);
+    setIsraelError(false);
+    fetchCbsSeries(manualCbsId)
+      .then((r) => setIsraelData({ id: r.seriesId, title: r.title, updated: r.updated, series: r.series, rawUrl: r.rawUrl }))
+      .catch(() => setIsraelError(true))
+      .finally(() => setIsraelLoading(false));
+  }, [mode, includeIsrael, manualCbsId]);
 
   const provenanceLines: Provenance[] = useMemo(() => {
     const lines: Provenance[] = [];
     if (dataset) {
       lines.push({ code: dataset.datasetCode, source: "eurostat", updated: dataset.updated, rawUrl: dataset.rawUrl });
     }
-    if (cbsSeriesData) {
-      lines.push({ code: cbsSeriesData.seriesId, source: "cbs", updated: cbsSeriesData.updated, rawUrl: cbsSeriesData.rawUrl });
+    if (israelData) {
+      lines.push({ code: israelData.id, source: "cbs", updated: israelData.updated, rawUrl: israelData.rawUrl });
     }
     return lines;
-  }, [dataset, cbsSeriesData]);
+  }, [dataset, israelData]);
 
   const chartSeries: ChartSeries[] = useMemo(() => {
     if (!dataset) return [];
     const series: ChartSeries[] = [];
     let colorIdx = 0;
-    if (includeIsrael && cbsSeriesData) {
+    if (includeIsrael && israelData) {
       series.push({
         label: t("provenance.cbs"),
         color: "#34c98f",
-        points: cbsSeriesData.series,
-        secondaryAxis: cbsManuallyPicked,
+        points: israelData.series,
+        secondaryAxis: mode === "advanced",
       });
     }
     if (includeEuAggregate && dataset.euAggregateCode && dataset.series[dataset.euAggregateCode]) {
@@ -129,29 +182,80 @@ export default function Dashboard() {
       colorIdx++;
     }
     return series;
-  }, [dataset, includeIsrael, cbsSeriesData, cbsManuallyPicked, includeEuAggregate, selectedGeoCodes, t]);
+  }, [dataset, includeIsrael, israelData, mode, includeEuAggregate, selectedGeoCodes, t]);
+
+  const title = mode === "curated" ? (selectedMapping ? (locale === "he" ? selectedMapping.labelHe : selectedMapping.labelEn) : null) : (selected?.title ?? null);
 
   return (
     <div>
       <div className="panel">
-        <IndicatorSearch
-          toc={toc}
-          flatList={flatList}
-          selectedCode={selected?.code ?? null}
-          onSelect={(code, title) => setSelected({ code, title })}
-        />
-        {tocError && <p className="error-text">{t("catalog.error")}</p>}
+        <div className="mode-toggle">
+          <button
+            type="button"
+            className="nav-button"
+            aria-current={mode === "curated" ? "page" : undefined}
+            onClick={() => setMode("curated")}
+          >
+            {t("mode.curated")}
+          </button>
+          <button
+            type="button"
+            className="nav-button"
+            aria-current={mode === "advanced" ? "page" : undefined}
+            onClick={() => setMode("advanced")}
+          >
+            {t("mode.advanced")}
+          </button>
+        </div>
+
+        {mode === "curated" && (
+          <>
+            <p className="loading-text">{t("mode.curatedNote")}</p>
+            <div className="indicator-cards">
+              {mappings.map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  className="indicator-card"
+                  aria-current={selectedMapping?.key === m.key}
+                  onClick={() => setSelectedMapping(m)}
+                >
+                  {locale === "he" ? m.labelHe : m.labelEn}
+                </button>
+              ))}
+              {mappings.length === 0 && <p className="loading-text">{t("catalog.loading")}</p>}
+            </div>
+          </>
+        )}
+
+        {mode === "advanced" && (
+          <>
+            <p className="loading-text">{t("mode.advancedNote")}</p>
+            <IndicatorSearch
+              toc={toc}
+              flatList={flatList}
+              selectedCode={selected?.code ?? null}
+              onSelect={(code, ttl) => setSelected({ code, title: ttl })}
+            />
+            {tocError && <p className="error-text">{t("catalog.error")}</p>}
+          </>
+        )}
       </div>
 
-      {!selected && (
+      {mode === "curated" && !selectedMapping && (
+        <div className="panel">
+          <p className="loading-text">{t("catalog.selectDataset")}</p>
+        </div>
+      )}
+      {mode === "advanced" && !selected && (
         <div className="panel">
           <p className="loading-text">{t("catalog.selectDataset")}</p>
         </div>
       )}
 
-      {selected && (
+      {((mode === "curated" && selectedMapping) || (mode === "advanced" && selected)) && (
         <div className="panel">
-          <h2 className="panel-title">{selected.title}</h2>
+          {title && <h2 className="panel-title">{title}</h2>}
           {datasetLoading && <p className="loading-text">{t("catalog.loading")}</p>}
           {datasetError && <NoDataNotice reason="loadFailed" />}
 
@@ -167,43 +271,44 @@ export default function Dashboard() {
                 onToggleIsrael={setIncludeIsrael}
               />
 
-              {!dataset.hasIsrael && includeIsrael && (
+              {!dataset.hasIsrael && includeIsrael && mode === "advanced" && (
                 <p className="loading-text" style={{ marginBlockEnd: "0.5rem" }}>
                   {t("nodata.noIsrael")}
                 </p>
               )}
 
-              {includeIsrael && (
+              {includeIsrael && mode === "advanced" && (
                 <div style={{ marginBlockEnd: "1rem" }}>
-                  {cbsSeriesId && !showCbsPicker && (
+                  {manualCbsId && !showCbsPicker && (
                     <div className="selector-row">
                       <span className="loading-text">
-                        {cbsLoading
-                          ? t("catalog.loading")
-                          : cbsSeriesData?.title ?? cbsSeriesId}
+                        {israelLoading ? t("catalog.loading") : (israelData?.title ?? manualCbsId)}
                         {" — "}
-                        {cbsManuallyPicked ? t("cbsPicker.manual") : t("cbsPicker.mapped")}
+                        {t("cbsPicker.manual")}
                       </span>
                       <button type="button" className="link-button" onClick={() => setShowCbsPicker(true)}>
                         {t("cbsPicker.change")}
                       </button>
                     </div>
                   )}
-                  {cbsError && <NoDataNotice reason="loadFailed" />}
-                  {(!cbsSeriesId || showCbsPicker) && (
+                  {israelError && <NoDataNotice reason="loadFailed" />}
+                  {(!manualCbsId || showCbsPicker) && (
                     <CbsSeriesPicker
-                      onSelect={(id, title) => {
-                        setCbsSeriesId(id);
-                        setCbsManuallyPicked(true);
+                      onSelect={(id) => {
+                        setManualCbsId(id);
                         setShowCbsPicker(false);
-                        setCbsSeriesData((prev) => (prev && prev.seriesId === id ? prev : null));
-                        void title;
+                        setIsraelData((prev) => (prev && prev.id === id ? prev : null));
                       }}
                     />
                   )}
-                  {!cbsSeriesId && !showCbsPicker && <NoDataNotice reason="noMapping" />}
+                  {!manualCbsId && !showCbsPicker && <NoDataNotice reason="noMapping" />}
                 </div>
               )}
+
+              {includeIsrael && mode === "curated" && israelLoading && (
+                <p className="loading-text">{t("catalog.loading")}</p>
+              )}
+              {includeIsrael && mode === "curated" && israelError && <NoDataNotice reason="loadFailed" />}
 
               <div className="selector-row">
                 <button
@@ -237,7 +342,7 @@ export default function Dashboard() {
                   geoCodes={selectedGeoCodes}
                   includeEuAggregate={includeEuAggregate}
                   includeIsrael={includeIsrael}
-                  israelPoints={cbsSeriesData?.series ?? null}
+                  israelPoints={israelData?.series ?? null}
                   israelLabel={t("provenance.cbs")}
                 />
               )}

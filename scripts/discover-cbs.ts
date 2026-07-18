@@ -8,10 +8,13 @@ const MAP_PATH = path.join(__dirname, "..", "data", "cbs-indicator-map.json");
 
 interface IndicatorMapping {
   key: string;
-  eurostatDatasetCode: string;
-  cbsSeriesId: string;
   labelEn: string;
   labelHe: string;
+  eurostatDatasetCode: string;
+  euFilterOverrides?: Record<string, string>;
+  cbsApiType: "series" | "index";
+  cbsCode: string;
+  cbsValueKind?: "level" | "yoy";
   verifiedAt: string;
   notes?: string;
 }
@@ -124,7 +127,8 @@ async function main() {
         confirmed.push({
           key: target.key,
           eurostatDatasetCode: target.eurostatDatasetCode,
-          cbsSeriesId: seriesId,
+          cbsApiType: "series",
+          cbsCode: seriesId,
           labelEn: target.labelEn,
           labelHe: target.labelHe,
           verifiedAt: new Date().toISOString().slice(0, 10),
@@ -139,7 +143,7 @@ async function main() {
 
   console.log(`\nConfirmed ${confirmed.length} of ${TARGETS.length} target indicators.`);
   for (const c of confirmed) {
-    console.log(`  ${c.key} -> CBS #${c.cbsSeriesId} / Eurostat ${c.eurostatDatasetCode}`);
+    console.log(`  ${c.key} -> CBS #${c.cbsCode} / Eurostat ${c.eurostatDatasetCode}`);
   }
 
   if (commit) {

@@ -140,3 +140,79 @@ export async function fetchCbsSeries(seriesId: string, lang: "en" | "he" = "en")
     rawUrl,
   };
 }
+
+// A second, separate CBS API — apis.cbs.gov.il/index/... — dedicated to
+// price indices (CPI, housing prices, producer prices, construction input
+// prices). Confirmed live 2026-07-18: unlike the general series/* API
+// above (whose catalog leaf identifiers do not reliably correspond to the
+// data actually returned — see CLAUDE.md), this API's codes and returned
+// titles genuinely match (code 120010 -> "Consumer Price Index - General"
+// with real percent/percentYear figures). Use Index/Catalog/Catalog to
+// discover codes and this function to fetch one.
+interface CbsPriceIndexResponse {
+  month: {
+    code: number;
+    name: string;
+    date: {
+      year: number;
+      month: number;
+      percent: number | null;
+      percentYear: number | null;
+      currBase: { baseDesc: string; value: number | null } | null;
+    }[];
+  }[];
+}
+
+export interface CbsPriceIndexResult {
+  code: string;
+  title: string | null;
+  updated: string | null;
+  series: { year: number; value: number | null }[];
+  rawUrl: string;
+}
+
+/** value: "level" returns the raw index level (base-year dependent, only
+ *  meaningful alongside another series on the same base); "yoy" returns
+ *  the year-over-year percent change (percentYear), which is comparable
+ *  across different index bases — use this to pair with a Eurostat
+ *  "rate of change" series. */
+export async function fetchCbsPriceIndex(
+  code: string,
+  valueKind: "level" | "yoy",
+  lang: "en" | "he" = "en",
+): Promise<CbsPriceIndexResult> {
+  const rawUrl = `${CBS_BASE}/index/data/price?id=${encodeURIComponent(code)}&format=json&lang=${lang}`;
+  const json = (await cbsFetch(`index/data/price?id=${encodeURIComponent(code)}&format=json&lang=${lang}`)) as CbsPriceIndexResponse;
+  const entry = json.month?.[0];
+  if (!entry) {
+    throw new Error(`CBS price index ${code} returned no data`);
+  }
+
+  // Data is typically ordered newest-first; take one point per year (the
+  // first one seen, i.e. that year's most recent month) rather than
+  // averaging — averaging would be a computed figure we didn't observe,
+  // which the never-fabricate rule treats the same as any other estimate.
+  const byYear = new Map<number, number | null>();
+  let latestYear = -Infinity;
+  let latestMonth = -Infinity;
+  for (const d of entry.date) {
+    if (!byYear.has(d.year)) {
+      byYear.set(d.year, valueKind === "yoy" ? d.percentYear : (d.currBase?.value ?? null));
+    }
+    if (d.year > latestYear || (d.year === latestYear && d.month > latestMonth)) {
+      latestYear = d.year;
+      latestMonth = d.month;
+    }
+  }
+  const points = Array.from(byYear.entries())
+    .map(([year, value]) => ({ year, value }))
+    .sort((a, b) => a.year - b.year);
+
+  return {
+    code,
+    title: entry.name,
+    updated: Number.isFinite(latestYear) ? `${latestYear}-${String(latestMonth).padStart(2, "0")}` : null,
+    series: points,
+    rawUrl,
+  };
+}
