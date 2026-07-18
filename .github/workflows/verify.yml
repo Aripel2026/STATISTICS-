@@ -1,0 +1,31 @@
+name: Verify data sources
+
+on:
+  schedule:
+    # Nightly at 03:17 UTC — off the hour to avoid GitHub's scheduling
+    # pile-up at :00.
+    - cron: "17 3 * * *"
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - "server-lib/**"
+      - "scripts/**"
+      - "data/cbs-indicator-map.json"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run verify
+      - name: Upload verify report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-report
+          path: verify-report.json
+          retention-days: 30
