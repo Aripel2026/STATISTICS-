@@ -25,17 +25,42 @@ export interface CbsSeriesResult {
   rawUrl: string;
 }
 
+// CBS's API is intermittently flaky: the same, genuinely valid series ID
+// can 500 on one request and 200 on the next (confirmed live — series
+// 120010 failed on a retry with no request change). A short retry absorbs
+// that transient noise; it never changes what data is returned, only
+// whether a real, unmodified response gets through.
+const RETRY_COUNT = 2;
+const RETRY_DELAY_MS = 400;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function cbsFetch(pathAndQuery: string): Promise<unknown> {
   const url = `${CBS_BASE}/${pathAndQuery}`;
-  const res = await fetch(url, { headers: { "User-Agent": CBS_USER_AGENT } });
-  if (!res.ok) {
-    throw new Error(`CBS request failed: ${res.status} ${res.statusText} (${url})`);
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= RETRY_COUNT; attempt++) {
+    if (attempt > 0) await sleep(RETRY_DELAY_MS * attempt);
+    try {
+      const res = await fetch(url, { headers: { "User-Agent": CBS_USER_AGENT } });
+      if (!res.ok) {
+        lastError = new Error(`CBS request failed: ${res.status} ${res.statusText} (${url})`);
+        continue;
+      }
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("json")) {
+        // A non-JSON response means the endpoint doesn't exist / the
+        // request shape is wrong — retrying won't help, fail immediately.
+        throw new Error(`CBS returned a non-JSON response for ${url} — endpoint may not exist`);
+      }
+      return await res.json();
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
   }
-  const contentType = res.headers.get("content-type") ?? "";
-  if (!contentType.includes("json")) {
-    throw new Error(`CBS returned a non-JSON response for ${url} — endpoint may not exist`);
-  }
-  return res.json();
+  throw lastError ?? new Error(`CBS request failed for ${url}`);
 }
 
 interface CbsCatalogResponse {

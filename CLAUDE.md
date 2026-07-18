@@ -33,6 +33,36 @@ series), so Israeli data uses two tracks:
   Israel data into IL-vs-EU comparisons. Populated/extended via
   `scripts/discover-cbs.ts`.
 
+**Important CBS catalog pitfall (confirmed live 2026-07-18): a catalog leaf's
+own title can be wrong for its data.** E.g. `series/catalog/path` under
+"Foreign Trade" listed leaf `95` as "Exports, Total" — but fetching it via
+`series/data/list?id=95` reveals it's actually an *imports* sub-series
+("Imports of Goods - Raw Material ... - for Agriculture"). Catalog
+leaf-title keyword matching alone is **not sufficient** to confirm a
+concept pairing; `discover-cbs.ts` requires the series's own fetched title
+(`series/data/list`'s `name_id` field, ground truth) to also corroborate
+the match before accepting it. Never add an entry to
+`cbs-indicator-map.json` on catalog-title agreement alone — always check
+what `series/data/list` actually returns.
+
+**CBS's `series/data/list` is also intermittently flaky**: the same,
+genuinely valid series ID (e.g. `120010`) can return 500 on one request and
+200 on the next with no change in the request. `cbsClient.ts` retries
+transient failures a couple of times before giving up; this is pure
+reliability handling, it never changes what data is returned.
+
+**Current state of `cbs-indicator-map.json`: intentionally empty.** A
+keyword-matching discovery pass across all 34 CBS top-level categories
+(5 pages each) found candidate catalog leaves for gdp/population/exports/
+imports, but every one was rejected by the double-confirmation check above
+— the actual fetched series turned out to be an unrelated country
+breakdown or trade sub-category, not the headline concept the catalog
+label implied. Shipping an empty map (Eurostat concepts show "not yet
+mapped" for Israel) is the honest outcome here, not a shortfall to
+work around with looser matching — see `scripts/discover-cbs.ts` to
+retry with a human manually cross-checking CBS's own published
+"Main Indicators" pages, which is the more reliable path forward.
+
 ## Layout
 
 - `/src` — Vite React frontend.
