@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import en from "./en.json";
 import he from "./he.json";
 import type { Locale } from "../lib/types";
@@ -29,9 +29,15 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") {
       window.localStorage.setItem("stat2-locale", next);
     }
-    document.documentElement.lang = next;
-    document.documentElement.dir = dirFor(next);
   }, []);
+
+  // Keep <html lang/dir> in sync on every render of a locale change,
+  // including the very first one — setting it only inside setLocale
+  // left the initial page load stuck on the index.html defaults.
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    document.documentElement.dir = dirFor(locale);
+  }, [locale]);
 
   const t = useCallback(
     (key: string) => dictionaries[locale][key] ?? key,
