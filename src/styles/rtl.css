@@ -337,3 +337,124 @@ select {
   color: var(--color-danger);
   font-size: 0.9rem;
 }
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-size: 1rem;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.search-results {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-sm);
+}
+
+.search-result-item {
+  padding: 0.6rem 0.9rem;
+  border-block-end: 1px solid var(--color-border-soft);
+}
+
+.search-result-item:last-child {
+  border-block-end: none;
+}
+
+.search-result-meta {
+  font-size: 0.76rem;
+  color: var(--color-text-faint);
+  margin-block-start: 0.15rem;
+}
+
+.search-result-meta code {
+  background: var(--color-surface-raised);
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--color-accent);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.3rem 0;
+  text-decoration: underline;
+}
+
+.link-button:hover {
+  color: var(--color-accent-strong);
+}
+
+.country-selector {
+  margin-block-end: 1.25rem;
+}
+
+.country-selector-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-block-end: 0.75rem;
+}
+
+.country-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.4rem;
+}
+
+.pill-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-raised);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color var(--transition);
+}
+
+.pill-checkbox:hover {
+  border-color: var(--color-accent);
+}
+
+.pill-checkbox input {
+  cursor: pointer;
+}
+
+.pill-checkbox-il {
+  border-color: color-mix(in srgb, var(--color-accent-il) 45%, var(--color-border));
+}
+
+.pill-checkbox-eu {
+  border-color: color-mix(in srgb, var(--color-accent-eu) 45%, var(--color-border));
+}
+
+.cbs-picker {
+  padding: 0.9rem;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-raised);
+}
+
+.cbs-picker-note {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  margin: 0 0 0.6rem;
+}

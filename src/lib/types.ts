@@ -63,6 +63,20 @@ export interface CbsLeafSeries {
   topLevelId: string;
 }
 
+export interface CbsIndexEntry {
+  seriesId: string;
+  title: string;
+  topLevelId: string;
+  topLevelTitle: string;
+}
+
+export interface FlatIndicator {
+  code: string;
+  title: string;
+  type: string;
+  breadcrumb: string[];
+}
+
 export interface IndicatorMapping {
   key: string;
   eurostatDatasetCode: string;

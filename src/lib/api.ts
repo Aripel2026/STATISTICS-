@@ -1,5 +1,6 @@
 import type {
   CbsCatalogCategory,
+  CbsIndexEntry,
   CbsLeafSeries,
   CbsSeriesResponse,
   EurostatDatasetResponse,
@@ -43,4 +44,8 @@ export function fetchCbsSeries(id: string, lang: "en" | "he" = "en"): Promise<Cb
 
 export function fetchIndicatorMappings(): Promise<IndicatorMapping[]> {
   return getJson<IndicatorMapping[]>("/api/indicators/mapped");
+}
+
+export function searchCbsSeries(query: string): Promise<CbsIndexEntry[]> {
+  return getJson<CbsIndexEntry[]>(`/api/cbs/search?q=${encodeURIComponent(query)}`);
 }

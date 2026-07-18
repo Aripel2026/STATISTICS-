@@ -18,6 +18,16 @@
    Don't hardcode a dataset/series as "known good" without a passing verify
    run backing it.
 
+## UI architecture: one page, not three
+
+The app is a single page (`Dashboard.tsx`), not separate catalog/CBS/compare
+tabs. Flow: `IndicatorSearch` (client-side substring search over the
+flattened Eurostat TOC, with a "browse by category" fallback using
+`CatalogTree`) → `CountrySelector` (multi-select EU member states + EU
+aggregate + Israel toggle, all shown simultaneously) → `IndicatorChart` /
+`MapView` toggle. Selecting several countries overlays them all on one
+chart rather than requiring a single/aggregate/all-27 mode switch.
+
 ## Data flow
 
 Eurostat catalog is fully dynamic (parsed from the TOC txt file, no
@@ -25,13 +35,17 @@ hardcoded indicator list). CBS has no search API and its catalog tree is
 unreliable for concept-targeting (browsing "Labour" surfaces unrelated
 series), so Israeli data uses two tracks:
 
-- `CbsBrowser`: dynamic leaf-series browsing across all CBS top-level
-  categories, showing CBS's own titles verbatim — standalone, not paired to
-  a Eurostat concept.
 - `data/cbs-indicator-map.json`: a curated, verify-gated mapping from
-  Eurostat dataset code to a hand-confirmed CBS series ID, used to pair
-  Israel data into IL-vs-EU comparisons. Populated/extended via
-  `scripts/discover-cbs.ts`.
+  Eurostat dataset code to a hand-confirmed CBS series ID, auto-attached
+  when it exists. Populated/extended via `scripts/discover-cbs.ts`.
+- **Manual attach (`CbsSeriesPicker`)**: when no curated mapping exists
+  (currently always, see below), the user searches a server-built CBS
+  series index (`server-lib/cbsIndex.ts`, `/api/cbs/search`) and picks a
+  series themselves. This is explicitly labeled "manually selected — not
+  an automatic match" in the UI (`cbsPicker.manual`) and gets its own
+  secondary chart axis (`ChartSeries.secondaryAxis`) since its unit/scale
+  isn't guaranteed comparable to the EU series — never silently plotted as
+  if it were a verified pairing.
 
 **Important CBS catalog pitfall (confirmed live 2026-07-18): a catalog leaf's
 own title can be wrong for its data.** E.g. `series/catalog/path` under
@@ -92,5 +106,10 @@ the `.js` extension.
   browser.
 - `/data` — `cbs-indicator-map.json` (curated mapping), `toc-snapshot.json`
   (pre-parsed Eurostat TOC).
+- `server-lib/cbsIndex.ts` — crawls all CBS top-level categories (1 page
+  each) into a cached, searchable index backing `/api/cbs/search`, used by
+  the manual CBS-attach picker. Cache TTL 6h; first request after a cold
+  start pays the full crawl cost (`vercel.json` gives this route a longer
+  `maxDuration`).
 - `/scripts` — `verify.ts` (mandatory readiness gate), `discover-cbs.ts`
   (CBS catalog crawler + concept-matching helper).

@@ -1,7 +1,9 @@
 # STAT 2.0
 
 Bilingual (Hebrew/English, full RTL) web app comparing socioeconomic
-indicators between Israel and European Union member states.
+indicators between Israel and European Union member states. Single-page
+UI: search for an indicator, pick which EU countries/aggregate/Israel to
+show, and view as a chart or table — no separate tabs to navigate.
 
 ## Core principle
 
@@ -18,17 +20,19 @@ source API's own last-updated timestamp.
   Eurostat Table of Contents (`catalogue/toc/txt`).
 - **Israel CBS** (`apis.cbs.gov.il`): Israeli data, browsed hierarchically
   (`series/catalog/level`, `series/catalog/path`, `series/data/list`) — CBS
-  has no free-text search endpoint. `CbsBrowser` lets users browse any real
-  CBS series directly. `/data/cbs-indicator-map.json` is a curated,
+  has no free-text search endpoint, so `/api/cbs/search` builds its own
+  searchable index server-side by crawling CBS's categories
+  (`server-lib/cbsIndex.ts`). `/data/cbs-indicator-map.json` is a curated,
   hand-confirmed mapping from a Eurostat dataset to a matching CBS series,
-  used to overlay Israel onto a EU comparison — see `scripts/discover-cbs.ts`
-  for how candidates are found and verified before being added. **This map
-  is intentionally empty right now**: CBS's own catalog leaf titles have
-  been observed to be wrong for their underlying data (see `CLAUDE.md`), so
-  automated keyword matching alone isn't trustworthy enough to ship — every
-  candidate found so far was rejected by the double-confirmation check.
-  Indicators without a mapping show an explicit "not yet mapped" notice for
-  Israel rather than a guessed pairing.
+  auto-attached when present — see `scripts/discover-cbs.ts` for how
+  candidates are found and verified before being added. **This map is
+  intentionally empty right now**: CBS's own catalog leaf titles have been
+  observed to be wrong for their underlying data (see `CLAUDE.md`), so
+  automated keyword matching alone isn't trustworthy enough to ship. When
+  no curated mapping exists, the UI lets the user search CBS themselves and
+  attach a series manually — clearly labeled "manually selected, not an
+  automatic match" and plotted on its own chart axis, never presented as a
+  verified pairing.
 
 ## Development
 

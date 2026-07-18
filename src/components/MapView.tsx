@@ -1,10 +1,13 @@
 import { useI18n } from "../i18n";
-import { EU27_CODES } from "../lib/euCountries";
 import type { EurostatDatasetResponse, SeriesPoint } from "../lib/types";
 
 interface MapViewProps {
   dataset: EurostatDatasetResponse;
+  geoCodes: string[];
+  includeEuAggregate: boolean;
+  includeIsrael: boolean;
   israelPoints: SeriesPoint[] | null;
+  israelLabel: string;
 }
 
 function latestValue(points: SeriesPoint[] | undefined): SeriesPoint | null {
@@ -13,9 +16,15 @@ function latestValue(points: SeriesPoint[] | undefined): SeriesPoint | null {
   return withValue ?? points[points.length - 1];
 }
 
-export default function MapView({ dataset, israelPoints }: MapViewProps) {
+export default function MapView({
+  dataset,
+  geoCodes,
+  includeEuAggregate,
+  includeIsrael,
+  israelPoints,
+  israelLabel,
+}: MapViewProps) {
   const { t } = useI18n();
-  const rows = EU27_CODES.filter((code) => dataset.availableGeoCodes.includes(code));
   const israelLatest = latestValue(israelPoints ?? undefined);
 
   return (
@@ -29,15 +38,19 @@ export default function MapView({ dataset, israelPoints }: MapViewProps) {
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>
-              <strong>{t("provenance.cbs")}</strong>
-            </td>
-            <td colSpan={2}>
-              {israelLatest ? `${israelLatest.year}: ${israelLatest.value ?? t("nodata.title")}` : t("nodata.noMapping")}
-            </td>
-          </tr>
-          {dataset.euAggregateCode && (
+          {includeIsrael && (
+            <tr>
+              <td>
+                <strong>{israelLabel}</strong>
+              </td>
+              <td colSpan={2}>
+                {israelLatest
+                  ? `${israelLatest.year}: ${israelLatest.value ?? t("nodata.title")}`
+                  : t("nodata.noMapping")}
+              </td>
+            </tr>
+          )}
+          {includeEuAggregate && dataset.euAggregateCode && (
             <tr>
               <td>
                 <strong>{dataset.geoLabels[dataset.euAggregateCode] ?? dataset.euAggregateCode}</strong>
@@ -50,7 +63,7 @@ export default function MapView({ dataset, israelPoints }: MapViewProps) {
               </td>
             </tr>
           )}
-          {rows.map((code) => {
+          {geoCodes.map((code) => {
             const latest = latestValue(dataset.series[code]);
             return (
               <tr key={code}>

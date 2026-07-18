@@ -20,6 +20,11 @@ export interface ChartSeries {
   label: string;
   color: string;
   points: SeriesPoint[];
+  /** Put on a separate right-hand axis — use for series whose scale/unit
+   *  isn't guaranteed comparable to the others (e.g. a manually attached
+   *  CBS series with no verified concept match), so it doesn't flatten
+   *  out next to differently-scaled lines. */
+  secondaryAxis?: boolean;
 }
 
 interface IndicatorChartProps {
@@ -38,6 +43,8 @@ export default function IndicatorChart({ seriesList, title }: IndicatorChartProp
     return Array.from(set).sort((a, b) => a - b);
   }, [seriesList]);
 
+  const hasSecondaryAxis = seriesList.some((s) => s.secondaryAxis);
+
   const data: ChartData<"line"> = useMemo(
     () => ({
       labels: years.map(String),
@@ -50,6 +57,7 @@ export default function IndicatorChart({ seriesList, title }: IndicatorChartProp
           backgroundColor: s.color,
           spanGaps: false,
           tension: 0.15,
+          yAxisID: s.secondaryAxis ? "y1" : "y",
         };
       }),
     }),
@@ -62,13 +70,22 @@ export default function IndicatorChart({ seriesList, title }: IndicatorChartProp
       locale,
       scales: {
         x: { reverse: dir === "rtl" },
+        y: { position: dir === "rtl" ? "right" : "left" },
+        ...(hasSecondaryAxis
+          ? {
+              y1: {
+                position: dir === "rtl" ? "left" : "right",
+                grid: { drawOnChartArea: false },
+              },
+            }
+          : {}),
       },
       plugins: {
         legend: { rtl: dir === "rtl", position: "top" },
         tooltip: { rtl: dir === "rtl" },
       },
     }),
-    [dir, locale],
+    [dir, locale, hasSecondaryAxis],
   );
 
   return (
