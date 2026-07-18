@@ -24,6 +24,7 @@ export interface EurostatDatasetResponse {
   euAggregateCode: string | null;
   availableGeoCodes: string[];
   geoLabels: Record<string, string>;
+  selectedFilters: Record<string, string>;
   series: Record<string, SeriesPoint[]>;
   rawUrl: string;
 }
