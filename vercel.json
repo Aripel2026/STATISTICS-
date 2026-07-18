@@ -4,9 +4,6 @@
   "framework": "vite",
   "functions": {
     "api/**/*.ts": {
-      "maxDuration": 15
-    },
-    "api/cbs/search.ts": {
       "maxDuration": 30
     }
   }
