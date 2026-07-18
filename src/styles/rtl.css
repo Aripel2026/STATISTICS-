@@ -1,0 +1,245 @@
+:root {
+  --color-bg: #0b0f14;
+  --color-surface: #131922;
+  --color-surface-raised: #1a2230;
+  --color-border: #2a3444;
+  --color-text: #e8edf4;
+  --color-text-muted: #93a1b5;
+  --color-accent: #4f9dff;
+  --color-accent-il: #2fb37c;
+  --color-accent-eu: #ffb454;
+  --color-danger: #ff6b6b;
+  --font-sans: system-ui, -apple-system, "Segoe UI", "Noto Sans Hebrew", Arial, sans-serif;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+[dir="rtl"] {
+  text-align: start;
+}
+
+.app-shell {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-block-end: 1px solid var(--color-border);
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.app-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.app-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.app-subtitle {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.app-nav {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.nav-button {
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.nav-button[aria-current="page"] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #08131f;
+  font-weight: 600;
+}
+
+.lang-toggle {
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.85rem;
+  margin-inline-start: auto;
+}
+
+.app-main {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 1200px;
+  width: 100%;
+  margin-inline: auto;
+}
+
+.app-footer {
+  padding: 1rem 1.5rem;
+  border-block-start: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-block-end: 1.25rem;
+}
+
+.panel-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem 0;
+}
+
+.tree-list {
+  list-style: none;
+  margin: 0;
+  padding-inline-start: 1rem;
+}
+
+.tree-node > .tree-node-label {
+  cursor: pointer;
+  padding: 0.3rem 0.4rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tree-node > .tree-node-label:hover {
+  background: var(--color-surface-raised);
+}
+
+.tree-leaf {
+  cursor: pointer;
+  padding: 0.3rem 0.4rem;
+  border-radius: 6px;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.tree-leaf:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.tree-leaf[aria-current="true"] {
+  background: var(--color-accent);
+  color: #08131f;
+}
+
+.no-data-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  background: color-mix(in srgb, var(--color-danger) 6%, transparent);
+}
+
+.provenance-footer {
+  margin-block-start: 0.75rem;
+  padding-block-start: 0.6rem;
+  border-block-start: 1px solid var(--color-border);
+  font-size: 0.76rem;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.provenance-line {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.provenance-line code {
+  background: var(--color-surface-raised);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+}
+
+.selector-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-block-end: 1rem;
+}
+
+select,
+button {
+  font-family: inherit;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.data-table th,
+.data-table td {
+  border: 1px solid var(--color-border);
+  padding: 0.4rem 0.6rem;
+  text-align: start;
+}
+
+.data-table th {
+  background: var(--color-surface-raised);
+}
+
+.loading-text {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.error-text {
+  color: var(--color-danger);
+  font-size: 0.9rem;
+}
