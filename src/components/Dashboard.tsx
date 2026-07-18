@@ -35,7 +35,6 @@ interface IsraelData {
 
 export default function Dashboard() {
   const { t, locale } = useI18n();
-  const [mode, setMode] = useState<"curated" | "advanced">("curated");
 
   const [mappings, setMappings] = useState<IndicatorMapping[]>([]);
   const [selectedMapping, setSelectedMapping] = useState<IndicatorMapping | null>(null);
@@ -44,6 +43,7 @@ export default function Dashboard() {
   const [tocError, setTocError] = useState(false);
   const flatList = useMemo(() => (toc ? flattenToc(toc) : []), [toc]);
   const [selected, setSelected] = useState<{ code: string; title: string } | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const [dataset, setDataset] = useState<EurostatDatasetResponse | null>(null);
   const [datasetLoading, setDatasetLoading] = useState(false);
@@ -57,9 +57,10 @@ export default function Dashboard() {
   const [israelLoading, setIsraelLoading] = useState(false);
   const [israelError, setIsraelError] = useState(false);
 
-  // Advanced mode only: manual CBS attach (no curated/verified match exists).
+  // Advanced (manual CBS attach) only: no curated/verified match exists.
   const [manualCbsId, setManualCbsId] = useState<string | null>(null);
   const [showCbsPicker, setShowCbsPicker] = useState(false);
+  const [manuallyPicked, setManuallyPicked] = useState(false);
 
   const [viewMode, setViewMode] = useState<"chart" | "table">("chart");
 
@@ -68,9 +69,13 @@ export default function Dashboard() {
     fetchToc().then(setToc).catch(() => setTocError(true));
   }, []);
 
-  // Curated mode: load the Eurostat side for the chosen mapping.
-  useEffect(() => {
-    if (mode !== "curated" || !selectedMapping) return;
+  function pickCurated(mapping: IndicatorMapping) {
+    setAdvancedOpen(false);
+    setSelected(null);
+    setManualCbsId(null);
+    setManuallyPicked(false);
+    setSelectedMapping(mapping);
+
     setDatasetLoading(true);
     setDatasetError(false);
     setDataset(null);
@@ -78,25 +83,23 @@ export default function Dashboard() {
     setIncludeEuAggregate(true);
     setIncludeIsrael(true);
 
-    fetchEurostatDataset(selectedMapping.eurostatDatasetCode, selectedMapping.euFilterOverrides)
+    fetchEurostatDataset(mapping.eurostatDatasetCode, mapping.euFilterOverrides)
       .then(setDataset)
       .catch(() => setDatasetError(true))
       .finally(() => setDatasetLoading(false));
-  }, [mode, selectedMapping]);
 
-  // Curated mode: load the verified CBS side.
-  useEffect(() => {
-    if (mode !== "curated" || !selectedMapping || !includeIsrael) {
-      if (mode === "curated") setIsraelData(null);
-      return;
-    }
     setIsraelLoading(true);
     setIsraelError(false);
     const fetcher =
-      selectedMapping.cbsApiType === "index"
-        ? fetchCbsPriceIndex(selectedMapping.cbsCode, selectedMapping.cbsValueKind ?? "yoy")
-            .then((r) => ({ id: r.code, title: r.title, updated: r.updated, series: r.series, rawUrl: r.rawUrl }))
-        : fetchCbsSeries(selectedMapping.cbsCode).then((r) => ({
+      mapping.cbsApiType === "index"
+        ? fetchCbsPriceIndex(mapping.cbsCode, mapping.cbsValueKind ?? "yoy").then((r) => ({
+            id: r.code,
+            title: r.title,
+            updated: r.updated,
+            series: r.series,
+            rawUrl: r.rawUrl,
+          }))
+        : fetchCbsSeries(mapping.cbsCode).then((r) => ({
             id: r.seriesId,
             title: r.title,
             updated: r.updated,
@@ -107,40 +110,39 @@ export default function Dashboard() {
       .then(setIsraelData)
       .catch(() => setIsraelError(true))
       .finally(() => setIsraelLoading(false));
-  }, [mode, selectedMapping, includeIsrael]);
+  }
 
-  // Advanced mode: load the Eurostat side for the freely searched dataset.
-  useEffect(() => {
-    if (mode !== "advanced" || !selected) return;
+  function pickAdvanced(code: string, title: string) {
+    setSelectedMapping(null);
+    setSelected({ code, title });
+    setManualCbsId(null);
+    setManuallyPicked(false);
+    setShowCbsPicker(false);
+    setIsraelData(null);
+
     setDatasetLoading(true);
     setDatasetError(false);
     setDataset(null);
     setSelectedGeoCodes([]);
     setIncludeEuAggregate(true);
     setIncludeIsrael(true);
-    setIsraelData(null);
-    setManualCbsId(null);
-    setShowCbsPicker(false);
 
-    fetchEurostatDataset(selected.code)
+    fetchEurostatDataset(code)
       .then(setDataset)
       .catch(() => setDatasetError(true))
       .finally(() => setDatasetLoading(false));
-  }, [mode, selected]);
+  }
 
-  // Advanced mode: load the manually attached CBS series, if any.
+  // Advanced only: load the manually attached CBS series, if any.
   useEffect(() => {
-    if (mode !== "advanced" || !includeIsrael || !manualCbsId) {
-      if (mode === "advanced") setIsraelData(null);
-      return;
-    }
+    if (!selected || !includeIsrael || !manualCbsId) return;
     setIsraelLoading(true);
     setIsraelError(false);
     fetchCbsSeries(manualCbsId)
       .then((r) => setIsraelData({ id: r.seriesId, title: r.title, updated: r.updated, series: r.series, rawUrl: r.rawUrl }))
       .catch(() => setIsraelError(true))
       .finally(() => setIsraelLoading(false));
-  }, [mode, includeIsrael, manualCbsId]);
+  }, [selected, includeIsrael, manualCbsId]);
 
   const provenanceLines: Provenance[] = useMemo(() => {
     const lines: Provenance[] = [];
@@ -162,7 +164,7 @@ export default function Dashboard() {
         label: t("provenance.cbs"),
         color: "#34c98f",
         points: israelData.series,
-        secondaryAxis: mode === "advanced",
+        secondaryAxis: manuallyPicked,
       });
     }
     if (includeEuAggregate && dataset.euAggregateCode && dataset.series[dataset.euAggregateCode]) {
@@ -182,78 +184,56 @@ export default function Dashboard() {
       colorIdx++;
     }
     return series;
-  }, [dataset, includeIsrael, israelData, mode, includeEuAggregate, selectedGeoCodes, t]);
+  }, [dataset, includeIsrael, israelData, manuallyPicked, includeEuAggregate, selectedGeoCodes, t]);
 
-  const title = mode === "curated" ? (selectedMapping ? (locale === "he" ? selectedMapping.labelHe : selectedMapping.labelEn) : null) : (selected?.title ?? null);
+  const title = selectedMapping ? (locale === "he" ? selectedMapping.labelHe : selectedMapping.labelEn) : selected?.title ?? null;
+  const isAdvanced = !selectedMapping && selected !== null;
 
   return (
     <div>
       <div className="panel">
-        <div className="mode-toggle">
-          <button
-            type="button"
-            className="nav-button"
-            aria-current={mode === "curated" ? "page" : undefined}
-            onClick={() => setMode("curated")}
-          >
-            {t("mode.curated")}
-          </button>
-          <button
-            type="button"
-            className="nav-button"
-            aria-current={mode === "advanced" ? "page" : undefined}
-            onClick={() => setMode("advanced")}
-          >
-            {t("mode.advanced")}
-          </button>
+        <p className="loading-text">{t("mode.curatedNote")}</p>
+        <div className="indicator-cards">
+          {mappings.map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              className="indicator-card"
+              aria-current={selectedMapping?.key === m.key}
+              onClick={() => pickCurated(m)}
+            >
+              {locale === "he" ? m.labelHe : m.labelEn}
+            </button>
+          ))}
+          {mappings.length === 0 && <p className="loading-text">{t("catalog.loading")}</p>}
         </div>
 
-        {mode === "curated" && (
-          <>
-            <p className="loading-text">{t("mode.curatedNote")}</p>
-            <div className="indicator-cards">
-              {mappings.map((m) => (
-                <button
-                  key={m.key}
-                  type="button"
-                  className="indicator-card"
-                  aria-current={selectedMapping?.key === m.key}
-                  onClick={() => setSelectedMapping(m)}
-                >
-                  {locale === "he" ? m.labelHe : m.labelEn}
-                </button>
-              ))}
-              {mappings.length === 0 && <p className="loading-text">{t("catalog.loading")}</p>}
-            </div>
-          </>
+        {!advancedOpen && (
+          <button type="button" className="link-button" onClick={() => setAdvancedOpen(true)}>
+            {t("mode.advanced")}
+          </button>
         )}
-
-        {mode === "advanced" && (
-          <>
+        {advancedOpen && (
+          <div style={{ marginBlockStart: "1rem" }}>
             <p className="loading-text">{t("mode.advancedNote")}</p>
             <IndicatorSearch
               toc={toc}
               flatList={flatList}
               selectedCode={selected?.code ?? null}
-              onSelect={(code, ttl) => setSelected({ code, title: ttl })}
+              onSelect={pickAdvanced}
             />
             {tocError && <p className="error-text">{t("catalog.error")}</p>}
-          </>
+          </div>
         )}
       </div>
 
-      {mode === "curated" && !selectedMapping && (
-        <div className="panel">
-          <p className="loading-text">{t("catalog.selectDataset")}</p>
-        </div>
-      )}
-      {mode === "advanced" && !selected && (
+      {!selectedMapping && !selected && (
         <div className="panel">
           <p className="loading-text">{t("catalog.selectDataset")}</p>
         </div>
       )}
 
-      {((mode === "curated" && selectedMapping) || (mode === "advanced" && selected)) && (
+      {(selectedMapping || selected) && (
         <div className="panel">
           {title && <h2 className="panel-title">{title}</h2>}
           {datasetLoading && <p className="loading-text">{t("catalog.loading")}</p>}
@@ -271,13 +251,13 @@ export default function Dashboard() {
                 onToggleIsrael={setIncludeIsrael}
               />
 
-              {!dataset.hasIsrael && includeIsrael && mode === "advanced" && (
+              {!dataset.hasIsrael && includeIsrael && isAdvanced && (
                 <p className="loading-text" style={{ marginBlockEnd: "0.5rem" }}>
                   {t("nodata.noIsrael")}
                 </p>
               )}
 
-              {includeIsrael && mode === "advanced" && (
+              {includeIsrael && isAdvanced && (
                 <div style={{ marginBlockEnd: "1rem" }}>
                   {manualCbsId && !showCbsPicker && (
                     <div className="selector-row">
@@ -296,6 +276,7 @@ export default function Dashboard() {
                     <CbsSeriesPicker
                       onSelect={(id) => {
                         setManualCbsId(id);
+                        setManuallyPicked(true);
                         setShowCbsPicker(false);
                         setIsraelData((prev) => (prev && prev.id === id ? prev : null));
                       }}
@@ -305,10 +286,10 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {includeIsrael && mode === "curated" && israelLoading && (
+              {includeIsrael && !isAdvanced && israelLoading && (
                 <p className="loading-text">{t("catalog.loading")}</p>
               )}
-              {includeIsrael && mode === "curated" && israelError && <NoDataNotice reason="loadFailed" />}
+              {includeIsrael && !isAdvanced && israelError && <NoDataNotice reason="loadFailed" />}
 
               <div className="selector-row">
                 <button

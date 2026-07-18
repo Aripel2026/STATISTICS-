@@ -18,23 +18,28 @@
    Don't hardcode a dataset/series as "known good" without a passing verify
    run backing it.
 
-## UI architecture: one page, two modes
+## UI architecture: one page, no mode toggle
 
-The app is a single page (`Dashboard.tsx`). Two modes, toggled at the top:
+The app is a single page (`Dashboard.tsx`). An earlier version had a
+top-level "Verified comparisons" / "Browse all Eurostat data" mode toggle;
+user feedback was that switching between two equal-weight modes was itself
+friction, so it's gone. The primary (and only default-visible) view is:
 
-- **Verified comparisons** (default): a short list of `cbs-indicator-map.json`
-  entries, shown as plain click cards — no search step. Both sides
+- **Curated indicator cards**: `cbs-indicator-map.json` entries, shown as
+  plain click cards — no search step, no mode to pick first. Both sides
   (Eurostat + CBS) are pre-verified to use the *same measure* (e.g. annual
   % change), so they share one chart axis and are genuinely comparable, not
-  just visually overlaid. This is what satisfies "only show data that's
-  actually comparable" — nothing here is a guess.
-- **Browse all Eurostat data** (advanced): `IndicatorSearch` (client-side
-  substring search over the flattened Eurostat TOC, with a "browse by
-  category" fallback using `CatalogTree`) for the ~10,000 Eurostat
-  indicators with no verified Israel match. Here the user can search CBS
-  themselves (`CbsSeriesPicker` / `/api/cbs/search`) and manually attach a
-  series, explicitly labeled "manually selected — not an automatic match"
-  and given its own secondary chart axis (`ChartSeries.secondaryAxis`)
+  just visually overlaid. Clicking a card immediately loads both sides —
+  this is what satisfies "only show data that's actually comparable" and
+  "as few steps as possible to see a chart."
+- **"Looking for something else?" text link** (not a tab/toggle): reveals
+  `IndicatorSearch` (client-side substring search over the flattened
+  Eurostat TOC, with a "browse by category" fallback using `CatalogTree`)
+  for the ~10,000 Eurostat indicators with no verified Israel match. Here
+  the user can search CBS themselves (`CbsSeriesPicker` / `/api/cbs/search`)
+  and manually attach a series, explicitly labeled "manually selected — not
+  an automatic match" and given its own secondary chart axis
+  (`ChartSeries.secondaryAxis`)
   since its unit/scale isn't guaranteed comparable — never silently plotted
   as if it were a verified pairing.
 
@@ -76,11 +81,20 @@ history:
    equivalent dedicated API for those was found (see the historical
    `data/cbs-indicator-map.json` git history / this section for what was
    tried: catalog crawling, `series/data/path`, guessed API domain names
-   like `apis.cbs.gov.il/labour/...`, and CBS's own website via WebFetch —
-   all failed or were blocked). A future session with better access to
-   CBS's own website (blocked here by both the sandbox's egress policy and
-   CBS's WAF returning 403 to fetch tools) might find more dedicated APIs
-   the same way this one was found — via web search for real
+   like `apis.cbs.gov.il/labour/...` and 12 other topic-name guesses (all
+   returned the generic CBS error page, not real data), an SDMX endpoint
+   (CBS is not a listed SDMX-Central participant and no `sdmx/rest/...`
+   path responded — only Bank of Israel, a separate agency, implements
+   SDMX), and CBS's own website via WebFetch (consistent 403s on every
+   page tried, including with query-string bypass tricks found via
+   search). One piece of corroborating evidence this isn't a gap in
+   research but a real scope limit: CBS's own Hebrew page for this API is
+   titled "מדדי מחירים באמצעות API" — "Price Indices via API" — i.e. CBS
+   itself scopes this dedicated API to prices only. A future session with
+   actual browser access to CBS's website (blocked here by both the
+   sandbox's egress policy and CBS's WAF returning 403 to fetch tools)
+   might find more dedicated APIs the same way this one was found — via
+   web search for real
    `apis.cbs.gov.il/...` URLs already in use, not by guessing.
 
 **Comparability requires matching the measure, not just the concept.**

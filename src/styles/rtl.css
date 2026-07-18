@@ -459,11 +459,6 @@ select {
   margin: 0 0 0.6rem;
 }
 
-.mode-toggle {
-  display: flex;
-  gap: 0.5rem;
-  margin-block-end: 1rem;
-}
 
 .indicator-cards {
   display: grid;
