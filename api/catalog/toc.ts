@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { fetchToc } from "../../server-lib/eurostatToc";
+import { fetchToc } from "../../server-lib/eurostatToc.js";
 
 export default async function handler(_req: VercelRequest, res: VercelResponse) {
   try {

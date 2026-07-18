@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { fetchEurostatDataset } from "../../../server-lib/eurostatClient";
+import { fetchEurostatDataset } from "../../../server-lib/eurostatClient.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const code = req.query.code;

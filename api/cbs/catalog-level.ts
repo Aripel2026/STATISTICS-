@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { fetchCbsTopLevel } from "../../server-lib/cbsClient";
+import { fetchCbsTopLevel } from "../../server-lib/cbsClient.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const lang = req.query.lang === "he" ? "he" : "en";

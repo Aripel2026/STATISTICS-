@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { fetchCbsTopLevel, fetchCbsLeafSeries, fetchCbsSeries } from "../server-lib/cbsClient";
+import { fetchCbsTopLevel, fetchCbsLeafSeries, fetchCbsSeries } from "../server-lib/cbsClient.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MAP_PATH = path.join(__dirname, "..", "data", "cbs-indicator-map.json");

@@ -63,6 +63,26 @@ work around with looser matching — see `scripts/discover-cbs.ts` to
 retry with a human manually cross-checking CBS's own published
 "Main Indicators" pages, which is the more reliable path forward.
 
+## Vercel deployment gotcha: relative imports need explicit `.js`
+
+`/api/*.ts` files import shared code from `/server-lib/*.ts` (e.g.
+`from "../../server-lib/cbsClient.js"`). **The `.js` extension is
+required**, even though the source file is `cbsClient.ts` — this bit us
+in production (confirmed live 2026-07-18): Vercel deploys each function
+as a separate file rather than bundling `/server-lib` into it, and Node's
+native ESM loader (this repo has `"type": "module"` in `package.json`)
+does not do CommonJS-style extension-less resolution. Without `.js`, the
+deployed function crashes at import time with
+`ERR_MODULE_NOT_FOUND: Cannot find module '/var/task/server-lib/...'` —
+shown to the user as a generic Vercel `FUNCTION_INVOCATION_FAILED` page,
+not one of our own error responses (the crash happens before our
+try/catch even runs). TypeScript's `bundler`/`nodenext` resolution both
+correctly map a `./foo.js` specifier back to `./foo.ts` at compile time,
+so this costs nothing locally — it only breaks in the deployed
+environment, which is why it wasn't caught until a real deploy. Any new
+relative import between `/api`, `/server-lib`, or `/scripts` must include
+the `.js` extension.
+
 ## Layout
 
 - `/src` — Vite React frontend.

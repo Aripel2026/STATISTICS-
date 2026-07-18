@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { fetchEurostatDataset } from "../server-lib/eurostatClient";
-import { fetchCbsSeries } from "../server-lib/cbsClient";
+import { fetchEurostatDataset } from "../server-lib/eurostatClient.js";
+import { fetchCbsSeries } from "../server-lib/cbsClient.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MAP_PATH = path.join(__dirname, "..", "data", "cbs-indicator-map.json");

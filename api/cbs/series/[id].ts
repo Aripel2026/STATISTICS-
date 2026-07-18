@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { fetchCbsSeries } from "../../../server-lib/cbsClient";
+import { fetchCbsSeries } from "../../../server-lib/cbsClient.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const idParam = req.query.id;
