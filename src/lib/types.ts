@@ -31,8 +31,7 @@ export interface EurostatDatasetResponse {
 
 export interface CbsSeriesResponse {
   seriesId: string;
-  titleHe: string | null;
-  titleEn: string | null;
+  title: string | null;
   source: "cbs";
   updated: string | null;
   series: SeriesPoint[];
@@ -55,14 +54,12 @@ export interface TocNode {
 
 export interface CbsCatalogCategory {
   id: string;
-  titleHe: string | null;
-  titleEn: string | null;
+  title: string;
 }
 
 export interface CbsLeafSeries {
   seriesId: string;
-  titleHe: string | null;
-  titleEn: string | null;
+  title: string;
   topLevelId: string;
 }
 

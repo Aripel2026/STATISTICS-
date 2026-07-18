@@ -23,18 +23,22 @@ export function fetchEurostatDataset(code: string): Promise<EurostatDatasetRespo
   return getJson<EurostatDatasetResponse>(`/api/eurostat/dataset/${encodeURIComponent(code)}`);
 }
 
-export function fetchCbsTopLevel(): Promise<CbsCatalogCategory[]> {
-  return getJson<CbsCatalogCategory[]>("/api/cbs/catalog-level");
+export function fetchCbsTopLevel(lang: "en" | "he" = "en"): Promise<CbsCatalogCategory[]> {
+  return getJson<CbsCatalogCategory[]>(`/api/cbs/catalog-level?lang=${lang}`);
 }
 
-export function fetchCbsLeafSeries(topLevelId: string, page = 1): Promise<CbsLeafSeries[]> {
+export function fetchCbsLeafSeries(
+  topLevelId: string,
+  page = 1,
+  lang: "en" | "he" = "en",
+): Promise<CbsLeafSeries[]> {
   return getJson<CbsLeafSeries[]>(
-    `/api/cbs/catalog-path?id=${encodeURIComponent(topLevelId)}&page=${page}`,
+    `/api/cbs/catalog-path?id=${encodeURIComponent(topLevelId)}&page=${page}&lang=${lang}`,
   );
 }
 
-export function fetchCbsSeries(id: string): Promise<CbsSeriesResponse> {
-  return getJson<CbsSeriesResponse>(`/api/cbs/series/${encodeURIComponent(id)}`);
+export function fetchCbsSeries(id: string, lang: "en" | "he" = "en"): Promise<CbsSeriesResponse> {
+  return getJson<CbsSeriesResponse>(`/api/cbs/series/${encodeURIComponent(id)}?lang=${lang}`);
 }
 
 export function fetchIndicatorMappings(): Promise<IndicatorMapping[]> {
