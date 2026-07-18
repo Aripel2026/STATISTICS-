@@ -26,9 +26,10 @@ source API's own last-updated timestamp.
 
 ```bash
 npm install
-npm run dev       # Vite dev server
-npm run build     # typecheck + production build
-npm run verify    # live-call both APIs, report per-indicator readiness
+npm run dev       # Vite dev server (frontend only)
+npx vercel dev     # full stack: frontend + /api serverless functions
+npm run build      # typecheck + production build
+npm run verify     # live-call both APIs, report per-indicator readiness
 ```
 
 `npm run verify` is the only source of truth for whether an indicator is
