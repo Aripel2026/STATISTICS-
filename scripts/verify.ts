@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { fetchEurostatDataset } from "../server-lib/eurostatClient.js";
-import { fetchCbsSeries, fetchCbsPriceIndex } from "../server-lib/cbsClient.js";
+import { fetchCbsSeries, fetchCbsPriceIndex, fetchCbsSdmx } from "../server-lib/cbsClient.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MAP_PATH = path.join(__dirname, "..", "data", "cbs-indicator-map.json");
@@ -18,9 +18,11 @@ interface IndicatorMapping {
   key: string;
   eurostatDatasetCode: string;
   euFilterOverrides?: Record<string, string>;
-  cbsApiType: "series" | "index";
+  cbsApiType: "series" | "index" | "sdmx";
   cbsCode: string;
   cbsValueKind?: "level" | "yoy";
+  cbsSdmxAgency?: string;
+  cbsSdmxVersion?: string;
   labelEn: string;
   labelHe: string;
   verifiedAt: string;
@@ -97,10 +99,14 @@ async function checkEurostat(code: string, overrides?: Record<string, string>): 
 
 async function checkCbs(mapping: IndicatorMapping): Promise<CbsCheckResult> {
   try {
-    const result =
-      mapping.cbsApiType === "index"
-        ? await fetchCbsPriceIndex(mapping.cbsCode, mapping.cbsValueKind ?? "yoy")
-        : await fetchCbsSeries(mapping.cbsCode);
+    let result: { updated: string | null; series: { year: number; value: number | null }[] };
+    if (mapping.cbsApiType === "index") {
+      result = await fetchCbsPriceIndex(mapping.cbsCode, mapping.cbsValueKind ?? "yoy");
+    } else if (mapping.cbsApiType === "sdmx") {
+      result = await fetchCbsSdmx(mapping.cbsSdmxAgency ?? "IMF", mapping.cbsCode, mapping.cbsSdmxVersion);
+    } else {
+      result = await fetchCbsSeries(mapping.cbsCode);
+    }
     const years = result.series.map((p) => p.year);
     const yearRange: [number, number] | null = years.length
       ? [Math.min(...years), Math.max(...years)]

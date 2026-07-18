@@ -47,6 +47,15 @@ export interface CbsPriceIndexResponse {
   rawUrl: string;
 }
 
+export interface CbsSdmxResponse {
+  dataflowId: string;
+  title: string | null;
+  source: "cbs";
+  updated: string | null;
+  series: SeriesPoint[];
+  rawUrl: string;
+}
+
 export interface TocDataset {
   code: string;
   title: string;
@@ -92,9 +101,11 @@ export interface IndicatorMapping {
   labelHe: string;
   eurostatDatasetCode: string;
   euFilterOverrides?: Record<string, string>;
-  cbsApiType: "series" | "index";
+  cbsApiType: "series" | "index" | "sdmx";
   cbsCode: string;
   cbsValueKind?: "level" | "yoy";
+  cbsSdmxAgency?: string;
+  cbsSdmxVersion?: string;
   verifiedAt: string;
   notes?: string;
 }

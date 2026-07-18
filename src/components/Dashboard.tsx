@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../i18n";
 import {
   fetchCbsPriceIndex,
+  fetchCbsSdmx,
   fetchCbsSeries,
   fetchEurostatDataset,
   fetchIndicatorMappings,
@@ -90,22 +91,32 @@ export default function Dashboard() {
 
     setIsraelLoading(true);
     setIsraelError(false);
-    const fetcher =
-      mapping.cbsApiType === "index"
-        ? fetchCbsPriceIndex(mapping.cbsCode, mapping.cbsValueKind ?? "yoy").then((r) => ({
-            id: r.code,
-            title: r.title,
-            updated: r.updated,
-            series: r.series,
-            rawUrl: r.rawUrl,
-          }))
-        : fetchCbsSeries(mapping.cbsCode).then((r) => ({
-            id: r.seriesId,
-            title: r.title,
-            updated: r.updated,
-            series: r.series,
-            rawUrl: r.rawUrl,
-          }));
+    let fetcher: Promise<IsraelData>;
+    if (mapping.cbsApiType === "index") {
+      fetcher = fetchCbsPriceIndex(mapping.cbsCode, mapping.cbsValueKind ?? "yoy").then((r) => ({
+        id: r.code,
+        title: r.title,
+        updated: r.updated,
+        series: r.series,
+        rawUrl: r.rawUrl,
+      }));
+    } else if (mapping.cbsApiType === "sdmx") {
+      fetcher = fetchCbsSdmx(mapping.cbsSdmxAgency ?? "IMF", mapping.cbsCode, mapping.cbsSdmxVersion).then((r) => ({
+        id: r.dataflowId,
+        title: r.title,
+        updated: r.updated,
+        series: r.series,
+        rawUrl: r.rawUrl,
+      }));
+    } else {
+      fetcher = fetchCbsSeries(mapping.cbsCode).then((r) => ({
+        id: r.seriesId,
+        title: r.title,
+        updated: r.updated,
+        series: r.series,
+        rawUrl: r.rawUrl,
+      }));
+    }
     fetcher
       .then(setIsraelData)
       .catch(() => setIsraelError(true))

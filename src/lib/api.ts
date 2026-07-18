@@ -3,6 +3,7 @@ import type {
   CbsIndexEntry,
   CbsLeafSeries,
   CbsPriceIndexResponse,
+  CbsSdmxResponse,
   CbsSeriesResponse,
   EurostatDatasetResponse,
   IndicatorMapping,
@@ -54,6 +55,12 @@ export function fetchCbsPriceIndex(
 ): Promise<CbsPriceIndexResponse> {
   return getJson<CbsPriceIndexResponse>(
     `/api/cbs/price/${encodeURIComponent(code)}?value=${valueKind}&lang=${lang}`,
+  );
+}
+
+export function fetchCbsSdmx(agency: string, dataflow: string, version = "1"): Promise<CbsSdmxResponse> {
+  return getJson<CbsSdmxResponse>(
+    `/api/cbs/sdmx/${encodeURIComponent(agency)}/${encodeURIComponent(dataflow)}?version=${encodeURIComponent(version)}`,
   );
 }
 

@@ -22,12 +22,18 @@ source API's own last-updated timestamp.
 - **Eurostat** (`ec.europa.eu/eurostat/api`): EU member-state and EU
   aggregate data, JSON-stat format, no API key. Browsed dynamically via the
   Eurostat Table of Contents (`catalogue/toc/txt`).
-- **Israel CBS** (`apis.cbs.gov.il`) — actually **two separate CBS APIs**:
+- **Israel CBS** (`apis.cbs.gov.il`) — actually **three separate CBS APIs**:
   - `index/*`: a dedicated, reliably-labeled price-index API (CPI, house
-    prices, producer prices). `data/cbs-indicator-map.json` uses this
-    exclusively — every entry pairs a CBS year-over-year % change against
-    a Eurostat series explicitly filtered to the matching "rate of change"
-    unit, so the two are genuinely comparable, not just visually similar.
+    prices, producer prices). Used by `cpi_inflation_yoy` and
+    `housing_price_yoy` in `data/cbs-indicator-map.json` — each pairs a CBS
+    year-over-year % change against a Eurostat series explicitly filtered
+    to the matching "rate of change" unit, so the two are genuinely
+    comparable, not just visually similar.
+  - `SDMX/DATA/{agency}/{dataflowId}/{version}`: a public SDMX-ML gateway
+    proxying IMF-standard-schema dataflows for Israel (`agency=IMF`),
+    confirmed as genuine CBS data via the response's own `Sender id="ICBS"`
+    header. Used by the `population` entry (`ECOFIN_POP`). See CLAUDE.md
+    for the list of other confirmed-working dataflow IDs.
   - `series/*`: a general catalog, browsed hierarchically (`series/catalog/
     level`, `series/catalog/path`, `series/data/list`) since CBS has no
     free-text search. **Confirmed unreliable for automated concept

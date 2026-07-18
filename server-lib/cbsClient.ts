@@ -63,6 +63,27 @@ async function cbsFetch(pathAndQuery: string): Promise<unknown> {
   throw lastError ?? new Error(`CBS request failed for ${url}`);
 }
 
+async function cbsFetchXml(pathAndQuery: string): Promise<string> {
+  const url = `${CBS_BASE}/${pathAndQuery}`;
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= RETRY_COUNT; attempt++) {
+    if (attempt > 0) await sleep(RETRY_DELAY_MS * attempt);
+    try {
+      const res = await fetch(url, { headers: { "User-Agent": CBS_USER_AGENT } });
+      const text = await res.text();
+      if (!res.ok || !text.trimStart().startsWith("<?xml")) {
+        lastError = new Error(`CBS SDMX request failed: ${res.status} ${res.statusText} (${url}) — ${text.slice(0, 200)}`);
+        continue;
+      }
+      return text;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+  throw lastError ?? new Error(`CBS SDMX request failed for ${url}`);
+}
+
 interface CbsCatalogResponse {
   catalogs: {
     catalog: { path: number[]; name: string; pathDesc: string | null }[];
@@ -212,6 +233,77 @@ export async function fetchCbsPriceIndex(
     code,
     title: entry.name,
     updated: Number.isFinite(latestYear) ? `${latestYear}-${String(latestMonth).padStart(2, "0")}` : null,
+    series: points,
+    rawUrl,
+  };
+}
+
+// A third, separate CBS access path — apis.cbs.gov.il/SDMX/DATA/{agency}/
+// {dataflowId}/{version} — proxies IMF-standard SDMX dataflows for Israel.
+// Confirmed live 2026-07-19 via agency=IMF, e.g. dataflow ECOFIN_POP
+// (population, INDICATOR=LP_PE_NUM, REF_AREA=IL) returns genuinely correct
+// monthly Israeli population data (4.8M in 1991 rising to 10.2M in 2026 —
+// matches known real demographic history). The response's <Header><Sender>
+// identifies as "Israeli Central Bureau of Statistics", so this is CBS's
+// own data reported through an IMF-standard schema, not third-party IMF
+// estimates. Most ECOFIN_* dataflow IDs return {"Message":"Error: Sdmx"}
+// (HTTP 500) rather than real data — only a handful are actually mirrored
+// (confirmed working: ECOFIN_CBS, ECOFIN_BOP, ECOFIN_GGO, ECOFIN_FSI,
+// ECOFIN_CPI, ECOFIN_POP, ECOFIN_PPI, ECOFIN_EMP) — always verify a new ID
+// via npm run verify before adding it to cbs-indicator-map.json.
+export interface CbsSdmxResult {
+  dataflowId: string;
+  title: string | null;
+  updated: string | null;
+  series: { year: number; value: number | null }[];
+  rawUrl: string;
+}
+
+function unescapeXmlAttr(value: string): string {
+  return value
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
+export async function fetchCbsSdmx(
+  agency: string,
+  dataflowId: string,
+  version: string = "1",
+): Promise<CbsSdmxResult> {
+  const rawUrl = `${CBS_BASE}/SDMX/DATA/${encodeURIComponent(agency)}/${encodeURIComponent(dataflowId)}/${encodeURIComponent(version)}`;
+  const xml = await cbsFetchXml(`SDMX/DATA/${encodeURIComponent(agency)}/${encodeURIComponent(dataflowId)}/${encodeURIComponent(version)}`);
+
+  const nameMatch = /<Name xml:lang="en">([^<]*)<\/Name>/.exec(xml);
+  const title = nameMatch ? unescapeXmlAttr(nameMatch[1]) : null;
+
+  const unitMultMatch = /UNIT_MULT="(-?\d+)"/.exec(xml);
+  const unitMult = unitMultMatch ? 10 ** Number(unitMultMatch[1]) : 1;
+
+  const obsRe = /<tis:Obs TIME_PERIOD="(\d{4})-(\d{2})" OBS_VALUE="([^"]*)"\s*\/>/g;
+  const byYear = new Map<number, number | null>();
+  let match: RegExpExecArray | null;
+  while ((match = obsRe.exec(xml)) !== null) {
+    const year = Number(match[1]);
+    if (byYear.has(year)) continue;
+    const raw = match[3];
+    const value = raw === "NaN" || raw === "" ? null : Number(raw) * unitMult;
+    byYear.set(year, value === null || Number.isNaN(value) ? null : value);
+  }
+  if (byYear.size === 0) {
+    throw new Error(`CBS SDMX dataflow ${dataflowId} returned no observations`);
+  }
+  const points = Array.from(byYear.entries())
+    .map(([year, value]) => ({ year, value }))
+    .sort((a, b) => a.year - b.year);
+  const latestYearWithData = points[points.length - 1].year;
+
+  return {
+    dataflowId,
+    title,
+    updated: String(latestYearWithData),
     series: points,
     rawUrl,
   };

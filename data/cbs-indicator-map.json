@@ -22,5 +22,18 @@
     "cbsValueKind": "yoy",
     "verifiedAt": "2026-07-19",
     "notes": "CBS code 40010 = 'Prices of Dwellings' from the same dedicated price-index API. Both sides use annual rate of change, so directly comparable across different index base years."
+  },
+  {
+    "key": "population",
+    "labelEn": "Population",
+    "labelHe": "אוכלוסייה",
+    "eurostatDatasetCode": "demo_pjan",
+    "euFilterOverrides": { "sex": "T", "age": "TOTAL" },
+    "cbsApiType": "sdmx",
+    "cbsCode": "ECOFIN_POP",
+    "cbsSdmxAgency": "IMF",
+    "cbsSdmxVersion": "1",
+    "verifiedAt": "2026-07-19",
+    "notes": "A third CBS access path: apis.cbs.gov.il/SDMX/DATA/IMF/ECOFIN_POP/1, an IMF-standard SDMX dataflow whose response header identifies the sender as 'Israeli Central Bureau of Statistics' — this is CBS's own population data reported via a standardized schema (INDICATOR=LP_PE_NUM, REF_AREA=IL), not a third-party estimate. Verified plausible: 5.05M (1991) rising to 10.25M (2026), matching known Israeli demographic history. Both sides are a plain population count (Eurostat unit=Number, CBS UNIT_MULT=3 i.e. thousands), directly comparable."
   }
 ]

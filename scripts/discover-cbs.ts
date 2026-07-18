@@ -12,7 +12,7 @@ interface IndicatorMapping {
   labelHe: string;
   eurostatDatasetCode: string;
   euFilterOverrides?: Record<string, string>;
-  cbsApiType: "series" | "index";
+  cbsApiType: "series" | "index" | "sdmx";
   cbsCode: string;
   cbsValueKind?: "level" | "yoy";
   verifiedAt: string;

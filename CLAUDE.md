@@ -96,6 +96,26 @@ history:
    might find more dedicated APIs the same way this one was found — via
    web search for real
    `apis.cbs.gov.il/...` URLs already in use, not by guessing.
+3. **`SDMX/DATA/{agency}/{dataflowId}/{version}`** (`cbsClient.ts`'s
+   `fetchCbsSdmx`, discovered 2026-07-19) — **correction to the note
+   above**: CBS *does* expose a public SDMX-ML gateway; the earlier
+   "no SDMX endpoint" conclusion was based on guessing `sdmx/rest/...`
+   paths, which is the wrong URL shape. The real path is
+   `apis.cbs.gov.il/SDMX/DATA/{agency}/{dataflowId}/{version}` (see CBS's
+   own guide, `cbs.gov.il/en/Pages/Api-SDMX.aspx`, not directly fetchable
+   here but confirmed via web search for real example URLs). It proxies
+   IMF-standard-schema dataflows for Israel (`agency=IMF`); the response's
+   own `<Header><Sender id="ICBS"><Name>Israeli Central Bureau of
+   Statistics</Name>` confirms it's CBS's own data, not a third-party
+   estimate. Only specific dataflow IDs work (most return
+   `{"Message":"Error: Sdmx"}` HTTP 500); confirmed working so far:
+   `ECOFIN_CBS`, `ECOFIN_BOP`, `ECOFIN_GGO`, `ECOFIN_FSI`, `ECOFIN_CPI`,
+   `ECOFIN_POP`, `ECOFIN_PPI`, `ECOFIN_EMP`. `cbs-indicator-map.json`'s
+   `population` entry uses `ECOFIN_POP`. Values need `* 10^UNIT_MULT`
+   scaling (present as an XML attribute on the series). This is now the
+   preferred path to try first for any new curated indicator beyond
+   prices, since it's broader than `index/*` and reliable (unlike
+   `series/*`).
 
 **Comparability requires matching the measure, not just the concept.**
 Both curated entries pair a CBS `percentYear` (year-over-year % change)
